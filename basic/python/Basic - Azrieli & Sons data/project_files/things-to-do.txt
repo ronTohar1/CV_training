@@ -7,6 +7,8 @@
 - need to add the calculation for night and weekend and put it in the price -[V]
 
 - Check if I want to use the solution of changing the distribution of kph or time or something.....
+- What to do with rows with no start time nor end time data?
+- First fix times or fix how the data distributes?
 
 
 

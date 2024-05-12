@@ -19,6 +19,8 @@ class TripFile():
     def preprocess_trips_df(self, trips_df):
         trips_df.start_time = pd.to_datetime(trips_df.start_time)
         trips_df.end_time = pd.to_datetime(trips_df.end_time)
+        trips_df["month"] = self.month
+        trips_df["year"] = self.year
 
     def get_data_frame(self):
         return self.trips_df
