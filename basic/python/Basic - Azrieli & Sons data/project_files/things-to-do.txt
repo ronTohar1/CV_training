@@ -17,4 +17,5 @@ WITH Mr.AZRIELI
 - check if it is ok to make up fares and bonuses in taarif -> Check if can remove electricity and bituah leumi if they are not a lot in the data -> no
 - present him with the drives that are more then 30 hours - [V]
 - Check about the non reasonable drive times and km distribuation
+- Send him the people without birthdate
 
