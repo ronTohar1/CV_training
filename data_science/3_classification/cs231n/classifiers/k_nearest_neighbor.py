@@ -2,7 +2,9 @@ from builtins import range
 from builtins import object
 import numpy as np
 from past.builtins import xrange
-
+from collections import Counter
+from tqdm import tqdm
+from time import time
 
 class KNearestNeighbor(object):
     """ a kNN classifier with L2 distance """
@@ -67,7 +69,7 @@ class KNearestNeighbor(object):
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
         dists = np.zeros((num_test, num_train))
-        for i in range(num_test):
+        for i in tqdm(range(num_test)):
             for j in range(num_train):
                 #####################################################################
                 # TODO:                                                             #
@@ -76,8 +78,11 @@ class KNearestNeighbor(object):
                 # not use a loop over dimension, nor use np.linalg.norm().          #
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-                pass
+                
+                test_row = X[i]
+                train_row = self.X_train[j]
+                diff_row = test_row - train_row
+                dists[i,j] = np.sqrt((diff_row**2).sum())
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -91,8 +96,9 @@ class KNearestNeighbor(object):
         """
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
+
         dists = np.zeros((num_test, num_train))
-        for i in range(num_test):
+        for i in tqdm(range(num_test)):
             #######################################################################
             # TODO:                                                               #
             # Compute the l2 distance between the ith test point and all training #
@@ -101,7 +107,24 @@ class KNearestNeighbor(object):
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            test_row = np.array(X[i])
+
+            # start
+
+            dists[i,:] = np.sqrt(np.sum(((X[i,:] - self.X_train[:,:]) ** 2), axis=1))
+            # diffs = X[i] - self.X_train[:, :]
+            # for j in range(num_train):
+                # self.X_train[j] - test_row
+            # diffs = self.X_train[:,:] - test_row
+
+            # diffs_squared = diffs ** 2
+            # diffs_2_sum = np.sum(diffs_squared, axis=1)
+            # dists_i = np.sqrt(diffs_2_sum)
+            # dists_i = np.sqrt(((self.X_train - test_row) ** 2).sum(axis=1))
+            # dists[i] = dists_i
+
+            # print(dists[i])
+            # break
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -130,10 +153,13 @@ class KNearestNeighbor(object):
         #       and two broadcast sums.                                         #
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
 
-        pass
+        squared_diff = np.sum(X**2, axis=1)[:, np.newaxis] - 2 * np.dot(X, self.X_train.T) + np.sum(self.X_train**2, axis=1)
 
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        # Step 2: Calculate the Euclidean distance without creating intermediate arrays
+        dists = np.sqrt(squared_diff)
+
         return dists
 
     def predict_labels(self, dists, k=1):
@@ -163,8 +189,8 @@ class KNearestNeighbor(object):
             # Hint: Look up the function numpy.argsort.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+            closest_y = self.y_train[np.argsort(dists[i])[:k]]
 
-            pass
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
@@ -176,7 +202,7 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            y_pred[i] = Counter(closest_y).most_common()[0][0]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
