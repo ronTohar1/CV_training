@@ -217,8 +217,8 @@ def svm_loss_vectorized(W, X, y, reg):
   coeffs = coeffs.unsqueeze(1) # Now its Nx1xC
   
   # batch_of_repeated_vectors = X.unsqueeze(1).repeat(1,num_classes,1) # (NxDxC) all batch vectors repeate C times horizontally
-  batch_of_repeated_vectors = X.unsqueeze(-1)
-  output = torch.bmm(batch_of_repeated_vectors, coeffs)
+  batch_of_vectors = X.unsqueeze(-1) # I think this is now (NxDx1)
+  output = torch.bmm(batch_of_vectors, coeffs)
   dW = torch.sum(output, dim=0)
   
   dW /= num_train
@@ -479,28 +479,20 @@ def softmax_loss_naive(W, X, y, reg):
   for i in range(num_train):
     scores = W.t().mv(X[i])
     correct_class_score = scores[y[i]]
-    softmax_scores  = get_stablized_softmax_score(scores, correct_class_score)
-    loss += -torch.log(softmax_scores )
-    
-    
-    # deriving the bottom is z' * e^z for all scores z
-    # Deriving the top is just the same for the top vector only
-    
-    # I think I have a mistake here because I just did top derivative devided by bottom derivative....
-    # Try do the chain rule maybe? derivative of softmax by w is = softmax by s times s by W
-    # bottom_derivative = X[i].repeat(num_classes,1) * torch.exp(scores.unsqueeze(1))# (CxD) of the same vector
-    # top_derivative = torch.zeros_like(W.T)
-    # top_derivative[y[i]] = X[i] * torch.exp(correct_class_score)
-    # f_tag = top_derivative / bottom_derivative
-    # f = soft_max_score
-    # dW += (f_tag/f).T
-    
-    # Compute the gradient
-    # for j in range(num_classes):
-        # dW[:, j] += (softmax_scores[j] - (j == y[i])) * X[i]
-    
+    softmax_score  = get_stablized_softmax_score(scores, correct_class_score)
+    loss += -torch.log(softmax_score )
 
 
+    # Calculating derivative
+    e_syi = torch.exp(correct_class_score)
+    bottom_sum = torch.sum(torch.exp(scores))
+
+    for j in range(num_classes):
+        if j == y[i]:
+          dW[:, j] -= X[i] / e_syi
+        
+        dW[:, j] += torch.exp(scores[j]) / bottom_sum * X[i]
+  
   loss /= num_train
   loss += reg * torch.sum(W * W)
   
@@ -525,6 +517,8 @@ def softmax_loss_vectorized(W, X, y, reg):
   loss = 0.0
   dW = torch.zeros_like(W)
 
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
   #############################################################################
   # TODO: Compute the softmax loss and its gradient using no explicit loops.  #
   # Store the loss in loss and the gradient in dW. If you are not careful     #
@@ -533,7 +527,25 @@ def softmax_loss_vectorized(W, X, y, reg):
   # regularization!                                                           #
   #############################################################################
   # Replace "pass" statement with your code
-  pass
+  batch_scores = W.t().mm(X.t()) # CxN -> standing vector of scores for each x_i
+  bottom_sums = torch.sum(torch.exp(batch_scores), dim=0) # N values of the bottom sum of each vector
+  top_values = torch.exp(batch_scores[y, torch.arange(num_train)])
+  loss = -torch.log(top_values/bottom_sums).sum() / num_train
+
+  x_divided_by_scores_sum = X / bottom_sums.unsqueeze(1)
+  x_summed = torch.sum(x_divided_by_scores_sum,dim=0).unsqueeze(0) # Summed all x vectors devided by the bottom sum of each one (shape is 1xD)
+  x_summed_repeated = x_summed.repeat(num_classes,1) # CxD of the same laying vector
+
+  x_unsqueezed = X.unsqueeze(-1) # NxDx1
+  coeffs = torch.zeros((num_train, num_classes), dtype=W.dtype, device=W.device) # NxC of 0s
+  coeffs[torch.arange(num_train), y] = 1/top_values # NxC of 1/e^S_yi in the y[i] column for each vector in the N vectors
+  coeffs = coeffs.unsqueeze(1) # Nx1xC
+  x_to_subtract = torch.bmm(x_unsqueezed, coeffs) # NxDxC
+  x_to_subtract = x_to_subtract.sum(dim=0) # CxD
+
+  dW = x_summed_repeated.T - x_to_subtract # CxD
+  
+
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
