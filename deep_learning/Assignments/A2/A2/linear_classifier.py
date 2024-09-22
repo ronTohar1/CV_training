@@ -528,11 +528,12 @@ def softmax_loss_vectorized(W, X, y, reg):
   #############################################################################
   # Replace "pass" statement with your code
   batch_scores = W.t().mm(X.t()) # CxN -> standing vector of scores for each x_i
-  bottom_sums = torch.sum(torch.exp(batch_scores), dim=0) # N values of the bottom sum of each vector
-  top_values = torch.exp(batch_scores[y, torch.arange(num_train)])
+  D = - torch.max(batch_scores, dim=0)[0]
+  bottom_sums = torch.sum(torch.exp(batch_scores + D), dim=0) # N values of the bottom sum of each vector
+  top_values = torch.exp(batch_scores[y, torch.arange(num_train)] + D)
   loss = -torch.log(top_values/bottom_sums).sum() / num_train
 
-  x_divided_by_scores_sum = X / bottom_sums.unsqueeze(1)
+  x_divided_by_scores_sum = X / bottom_sums.unsqueeze(1) # NxD
   x_summed = torch.sum(x_divided_by_scores_sum,dim=0).unsqueeze(0) # Summed all x vectors devided by the bottom sum of each one (shape is 1xD)
   x_summed_repeated = x_summed.repeat(num_classes,1) # CxD of the same laying vector
 
@@ -544,6 +545,8 @@ def softmax_loss_vectorized(W, X, y, reg):
   x_to_subtract = x_to_subtract.sum(dim=0) # DxC
 
   dW = x_summed_repeated.T - x_to_subtract # DxC
+  dW /= num_train
+  dW += 2*reg*W
   
 
   #############################################################################
