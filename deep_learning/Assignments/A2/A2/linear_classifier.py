@@ -541,9 +541,9 @@ def softmax_loss_vectorized(W, X, y, reg):
   coeffs[torch.arange(num_train), y] = 1/top_values # NxC of 1/e^S_yi in the y[i] column for each vector in the N vectors
   coeffs = coeffs.unsqueeze(1) # Nx1xC
   x_to_subtract = torch.bmm(x_unsqueezed, coeffs) # NxDxC
-  x_to_subtract = x_to_subtract.sum(dim=0) # CxD
+  x_to_subtract = x_to_subtract.sum(dim=0) # DxC
 
-  dW = x_summed_repeated.T - x_to_subtract # CxD
+  dW = x_summed_repeated.T - x_to_subtract # DxC
   
 
   #############################################################################
