@@ -529,8 +529,9 @@ def softmax_loss_vectorized(W, X, y, reg):
   # Replace "pass" statement with your code
   batch_scores = W.t().mm(X.t()) # CxN -> standing vector of scores for each x_i
   D = - torch.max(batch_scores, dim=0)[0]
-  bottom_sums = torch.sum(torch.exp(batch_scores + D), dim=0) # N values of the bottom sum of each vector
-  top_values = torch.exp(batch_scores[y, torch.arange(num_train)] + D)
+  batch_scores += D
+  bottom_sums = torch.sum(torch.exp(batch_scores), dim=0) # N values of the bottom sum of each vector
+  top_values = torch.exp(batch_scores[y, torch.arange(num_train)])
   loss = -torch.log(top_values/bottom_sums).sum() / num_train
 
   x_divided_by_scores_sum = X / bottom_sums.unsqueeze(1) # NxD
@@ -567,8 +568,8 @@ def softmax_get_search_params():
   - regularization_strengths: regularization strengths candidates
                               e.g. [1e0, 1e1, ...]
   """
-  learning_rates = []
-  regularization_strengths = []
+  learning_rates = [1e-6, 5e-6, 5e-8, 5e-7, 1e-7]
+  regularization_strengths = [1e-1, 1e0, 1e1, 1e2, 1e3,]
 
   ###########################################################################
   # TODO: Add your own hyper parameter lists. This should be similar to the #

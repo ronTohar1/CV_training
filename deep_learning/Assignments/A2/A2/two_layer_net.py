@@ -116,7 +116,10 @@ def nn_forward_pass(params, X):
     # shape (N, C).                                                            #
     ############################################################################
     # Replace "pass" statement with your code
-    pass
+    activation = torch.nn.ReLU()
+    hidden = activation((X @ W1) + b1) # NxH (N hidden layer vectors)
+    scores = (hidden @ W2) + b2 # NxC (N scores vectors)
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -166,6 +169,7 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
 
     # Compute the loss
     loss = None
+    C = W2.shape[1]
     ############################################################################
     # TODO: Compute the loss, based on the results from nn_forward_pass.       #
     # This should include both the data loss and L2 regularization for W1 and  #
@@ -176,13 +180,34 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     # (Check Numeric Stability in http://cs231n.github.io/linear-classify/).   #
     ############################################################################
     # Replace "pass" statement with your code
-    pass
+    from linear_classifier import softmax_loss_vectorized, get_stablized_softmax_score
+
+    STABLE = - torch.max(scores.T, dim=0)[0] # for stablizing the results
+    bottom_sums = torch.sum(torch.exp(scores.T + STABLE), dim=0) # N values of the bottom sum of each vector
+    top_values = torch.exp(scores.T[y, torch.arange(N)] + STABLE) # N values of e^s_yi
+    softmax_vectors = top_values/bottom_sums # N x C of softmax vectors
+    loss = -torch.log(softmax_vectors).sum() / N
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
 
     # Backward pass: compute gradients
     grads = {}
+    grads["W2"] = torch.zeros_like(W2)
+    for i in range(N):
+      softmax_vector = softmax_vectors[i]
+      dL_dS = softmax_vector.repeat(C,1) # CxC
+      dL_dS = torch.eye(C, device=W2.device) - dL_dS # Now it is 1-softmax on diagonal and -softmax otherwise
+      dL_dS = -dL_dS
+
+      dL_dH = dL_dS @ W2.T
+      print(X[i].shape)
+      print(dL_dS.shape)
+      dL_dW2 = X[i].T @ dL_dS
+
+      grads[W2] += dL_dW2
+
     ###########################################################################
     # TODO: Compute the backward pass, computing the derivatives of the       #
     # weights and biases. Store the results in the grads dictionary.          #
@@ -190,7 +215,10 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     # tensor of same size                                                     #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+
+    grads[W2] /= N
+
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
