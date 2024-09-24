@@ -162,7 +162,7 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     W2, b2 = params['W2'], params['b2']
     N, D = X.shape
 
-    scores, h1 = nn_forward_pass(params, X)
+    scores, h1 = nn_forward_pass(params, X) # scores is NxC, h1 is NxH
     # If the targets are not given then jump out, we're done
     if y is None:
       return scores
@@ -185,8 +185,8 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     STABLE = - torch.max(scores.T, dim=0)[0] # for stablizing the results
     bottom_sums = torch.sum(torch.exp(scores.T + STABLE), dim=0) # N values of the bottom sum of each vector
     top_values = torch.exp(scores.T[y, torch.arange(N)] + STABLE) # N values of e^s_yi
-    softmax_vectors = top_values/bottom_sums # N x C of softmax vectors
-    loss = -torch.log(softmax_vectors).sum() / N
+    softmax_values = top_values/bottom_sums # N  of softmax values
+    loss = -torch.log(softmax_values).sum() / N
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -195,19 +195,37 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     # Backward pass: compute gradients
     grads = {}
     grads["W2"] = torch.zeros_like(W2)
-    for i in range(N):
-      softmax_vector = softmax_vectors[i]
-      dL_dS = softmax_vector.repeat(C,1) # CxC
-      dL_dS = torch.eye(C, device=W2.device) - dL_dS # Now it is 1-softmax on diagonal and -softmax otherwise
-      dL_dS = -dL_dS
+    # for i in range(N):
+    #   current_scores = scores[i].clone()
+    #   current_scores -= current_scores.max() # for stablizing
 
-      dL_dH = dL_dS @ W2.T
-      print(X[i].shape)
-      print(dL_dS.shape)
-      dL_dW2 = X[i].T @ dL_dS
+    #   bottom_sum = torch.exp(current_scores).sum()
+    #   top_values = torch.exp(current_scores)
+    #   dL_dS = (top_values / bottom_sum) # shape = (C) -> same size as scores vector
+    #   dL_dS[y[i]] -= 1
+    #   dL_dW2 = h1[i].unsqueeze(0).T @ dL_dS.unsqueeze(0)
+    #   grads["W2"] += dL_dW2
 
-      grads[W2] += dL_dW2
 
+    dL_dS = torch.exp(scores - scores.max(dim=1).values.unsqueeze(-1)) / bottom_sums.unsqueeze(-1) # NxC (stablized the scores also here)
+    dL_dS[torch.arange(N), y] -= 1
+
+    dL_dH = dL_dS @ W2.T # NxH
+    dL_dH[h1==0] = 0 # Relu did it....
+
+    dL_dW2 = (h1.T @ dL_dS) / N # HxC
+    dL_db2 = dL_dS.sum(dim=0) / N # C
+
+    dL_dW1 = (X.T @ dL_dH) / N # DxH
+    dL_db1 = dL_dH.sum(dim=0) / N # H
+
+
+    grads["W2"] = dL_dW2 + 2*reg*W2
+    grads["W1"] = dL_dW1 + 2*reg*W1
+
+    grads["b2"] = dL_db2
+    grads["b1"] = dL_db1 
+    
     ###########################################################################
     # TODO: Compute the backward pass, computing the derivatives of the       #
     # weights and biases. Store the results in the grads dictionary.          #
@@ -215,8 +233,6 @@ def nn_forward_backward(params, X, y=None, reg=0.0):
     # tensor of same size                                                     #
     ###########################################################################
     # Replace "pass" statement with your code
-
-    grads[W2] /= N
 
 
     ###########################################################################
@@ -288,7 +304,8 @@ def nn_train(params, loss_func, pred_func, X, y, X_val, y_val,
     # stored in the grads dictionary defined above.                         #
     #########################################################################
     # Replace "pass" statement with your code
-    pass
+    for key, value in grads.items():
+      params[key] -= learning_rate*value
     #########################################################################
     #                             END OF YOUR CODE                          #
     #########################################################################
@@ -344,7 +361,8 @@ def nn_predict(params, loss_func, X):
   # TODO: Implement this function; it should be VERY simple!                #
   ###########################################################################
   # Replace "pass" statement with your code
-  pass
+  scores = loss_func(params, X,) # NxC
+  y_pred = scores.argmax(dim=1)
   ###########################################################################
   #                              END OF YOUR CODE                           #
   ###########################################################################
